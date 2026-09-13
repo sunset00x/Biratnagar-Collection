@@ -1,0 +1,251 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f4f6f8;
+  color: #333;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+  width: 250px;
+  background: #045631;
+  color: white;
+  min-height: 100vh;
+  padding: 20px;
+  flex-shrink: 0;
+}
+
+.sidebar h2 {
+  font-size: 18px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.sidebar a {
+  display: block;
+  color: #cfdcd5;
+  text-decoration: none;
+  padding: 11px 14px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s, color 0.2s;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  background: #087443;
+  color: white;
+}
+
+/* Main Dashboard Area */
+.main-content {
+  flex: 1;
+  padding: 30px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.top-header h1 {
+  font-size: 26px;
+  color: #17211b;
+  font-weight: 800;
+}
+
+/* Card Scaffolding */
+.card {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+  margin-bottom: 25px;
+  border: 1px solid #e4e9e6;
+}
+
+.card h2 {
+  font-size: 18px;
+  color: #17211b;
+  margin-bottom: 15px;
+  font-weight: 800;
+}
+
+/* 4-Column Stat Dashboard Grid */
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.stat-box {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid #e4e9e6;
+  border-left: 5px solid #087443;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.stat-box h3 {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+.stat-box p {
+  font-size: 24px;
+  font-weight: 900;
+  margin-top: 8px;
+  color: #087443;
+}
+
+/* Admin Data Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+table th,
+table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #e4e9e6;
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+
+table th {
+  background: #f8faf9;
+  color: #536059;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+table tbody tr:hover {
+  background: #fdfdfd;
+}
+
+/* Action Buttons */
+.btn-admin {
+  padding: 8px 14px;
+  background: #087443;
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-admin:hover {
+  background: #045631;
+}
+
+.btn-danger {
+  background: #dc2626;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* Dynamic Status Badges */
+.order-status {
+  display: inline-block;
+  color: #138148;
+  background: #eaf7f0;
+  border-radius: 30px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Admin Form Elements */
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid #dce4de;
+  border-radius: 7px;
+  outline: 0;
+  background: white;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #087443;
+  box-shadow: 0 0 0 3px rgba(8, 116, 67, 0.1);
+}
+
+.form-group textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 1024px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+  }
+  .main-content {
+    padding: 18px;
+  }
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
