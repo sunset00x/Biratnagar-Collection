@@ -6,27 +6,32 @@ require_once __DIR__ . '/includes/config.php';
 // AUTO-SETUP: Create admin_users table & default admin if missing
 // -------------------------------------------------------------
 try {
-    $tableCheck =$pdo->query("SHOW TABLES LIKE 'admin_users'");
-    if ($tableCheck->rowCount() === 0) {         // Create table$pdo->exec("CREATE TABLE `admin_users` (
-            `id` INT AUTO_INCREMENT PRIMARY KEY,
-            `username` VARCHAR(50) NOT NULL UNIQUE,
-            `password` VARCHAR(255) NOT NULL,
-            `email` VARCHAR(100) DEFAULT NULL,
-            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-        // Generate hash dynamically for 'admin123'
-        $defaultUser = 'admin';$defaultPass = password_hash('admin123', PASSWORD_DEFAULT);
+    $tableCheck = $pdo->query("SHOW TABLES LIKE 'admin_users'");
+    if ($tableCheck->rowCount() === 0) {
+        // Create table using clean string formatting
+        $createTableSql = 'CREATE TABLE admin_users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            email VARCHAR(100) DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
         
-        $stmt =$pdo->prepare("INSERT INTO admin_users (username, password, email) VALUES (?, ?, ?)");
-        $stmt->execute([$defaultUser,$defaultPass, 'admin@ramropasal.com']);
+        $pdo->exec($createTableSql);
+
+        // Insert default admin user ('admin' / 'admin123')
+        $defaultUser = 'admin';
+        $defaultPass = password_hash('admin123', PASSWORD_DEFAULT);
+        
+        $stmt = $pdo->prepare('INSERT INTO admin_users (username, password, email) VALUES (?, ?, ?)');
+        $stmt->execute([$defaultUser, $defaultPass, 'admin@ramropasal.com']);
     }
 } catch (PDOException $e) {
-    // Silently continue if table creation fails or permissions differ
+    // Silently continue if table already exists or execution handles it
 }
 
 // Redirect if already logged in
-if (isset($_SESSION['admin_logged_in']) &&$_SESSION['admin_logged_in'] === true) {
+if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
     header('Location: index.php');
     exit;
 }
@@ -38,13 +43,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = trim($_POST['password'] ?? '');
 
     if (!empty($username) && !empty($password)) {
-        $stmt =$pdo->prepare("SELECT * FROM admin_users WHERE username = ? LIMIT 1");
+        $stmt = $pdo->prepare('SELECT * FROM admin_users WHERE username = ? LIMIT 1');
         $stmt->execute([$username]);
-        $admin =$stmt->fetch();
+        $admin = $stmt->fetch();
 
-        if ($admin && password_verify($password, $admin['password'])) {$_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_id'] =$admin['id'];
-            $_SESSION['admin_username'] =$admin['username'];
+        if ($admin && password_verify($password, $admin['password'])) {
+            $_SESSION['admin_logged_in'] = true;
+            $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_username'] = $admin['username'];
             
             header('Location: index.php');
             exit;
