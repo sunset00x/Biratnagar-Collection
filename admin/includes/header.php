@@ -22,6 +22,7 @@ require_once __DIR__ . '/auth.php';
     <a href="products.php">Products</a>
     <a href="coupons.php">Coupons</a>
     <a href="sms-settings.php">SMS Settings</a>
+<a href="settings.php">Settings</a> 
  
     <a href="logout.php" style="margin-top: 50px; color: #ff8888;">Logout</a>
   </div>
