@@ -22,9 +22,9 @@ $successMsg = '';
 $errorMsg = '';
 
 // -------------------------------------------------------------
-// 1. HANDLE PASSWORD CHANGE
+// 1. HANDLE CURRENT ADMIN PASSWORD CHANGE
 // -------------------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_change_password'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_change_my_password'])) {
     $currentPass = $_POST['current_password'] ?? '';
     $newPass     = $_POST['new_password'] ?? '';
     $confirmPass = $_POST['confirm_password'] ?? '';
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_change_passwor
             $newHash = password_hash($newPass, PASSWORD_DEFAULT);
             $update = $pdo->prepare('UPDATE admin_users SET password = ? WHERE id = ?');
             $update->execute([$newHash, $_SESSION['admin_id']]);
-            $successMsg = 'Your password has been updated successfully.';
+            $successMsg = 'Your personal password has been updated successfully.';
         } else {
             $errorMsg = 'Incorrect current password.';
         }
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_change_passwor
 }
 
 // -------------------------------------------------------------
-// 2. HANDLE CREATE NEW ADMIN / USER ROLE
+// 2. HANDLE CREATE NEW USER & ROLE WITH INITIAL PASSWORD
 // -------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_create_user'])) {
     $username = trim($_POST['username'] ?? '');
@@ -62,6 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_create_user'])
 
     if (empty($username) || empty($password)) {
         $errorMsg = 'Username and password are required to create a user.';
+    } elseif (strlen($password) < 6) {
+        $errorMsg = 'User password must be at least 6 characters long.';
     } else {
         $check = $pdo->prepare('SELECT id FROM admin_users WHERE username = ?');
         $check->execute([$username]);
@@ -71,26 +73,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_create_user'])
             $hash = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $pdo->prepare('INSERT INTO admin_users (username, password, email, role, status) VALUES (?, ?, ?, ?, "Active")');
             $stmt->execute([$username, $hash, $email, $role]);
-            $successMsg = "New user '{$username}' created with role '{$role}'.";
+            $successMsg = "New account '{$username}' created with role '{$role}'.";
         }
     }
 }
 
 // -------------------------------------------------------------
-// 3. HANDLE STORE CONFIGURATION UPDATE
+// 3. HANDLE OVERRIDE PASSWORD FOR ANY SPECIFIC USER
 // -------------------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update_store'])) {
-    $storeName     = trim($_POST['store_name'] ?? '');
-    $supportPhone  = trim($_POST['support_phone'] ?? '');
-    $deliveryFee   = (float)($_POST['delivery_fee'] ?? 0);
-    $vatRate       = (float)($_POST['vat_rate'] ?? 0);
-    $esewaMerchant = trim($_POST['esewa_merchant'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_reset_user_password'])) {
+    $targetUserId = (int)($_POST['target_user_id'] ?? 0);
+    $newUserPass  = $_POST['user_new_password'] ?? '';
 
-    // Save to store_settings table if present, or set session confirmation
-    $successMsg = 'Store settings and localized configurations updated.';
+    if ($targetUserId <= 0 || empty($newUserPass)) {
+        $errorMsg = 'Please select a valid user and provide a new password.';
+    } elseif (strlen($newUserPass) < 6) {
+        $errorMsg = 'Password must be at least 6 characters long.';
+    } else {
+        $newHash = password_hash($newUserPass, PASSWORD_DEFAULT);
+        $update = $pdo->prepare('UPDATE admin_users SET password = ? WHERE id = ?');
+        $update->execute([$newHash, $targetUserId]);
+        $successMsg = "Password successfully updated for User #{$targetUserId}.";
+    }
 }
 
-// Fetch all system users for role management
+// Fetch all system users for management table
 $usersList = $pdo->query('SELECT id, username, email, role, status, created_at FROM admin_users ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -98,7 +105,7 @@ $usersList = $pdo->query('SELECT id, username, email, role, status, created_at F
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Settings & User Management | Admin Panel</title>
+  <title>Settings & User Roles | Admin Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -132,13 +139,17 @@ $usersList = $pdo->query('SELECT id, username, email, role, status, created_at F
     .badge-admin { background: #dbeafe; color: #1e40af; }
     .badge-manager { background: #fef3c7; color: #92400e; }
     .badge-active { background: #dcfce7; color: #166534; }
+    
+    .inline-form { display: flex; gap: 6px; align-items: center; }
+    .inline-form input { padding: 6px 8px; font-size: 12px; width: 140px; }
+    .inline-form button { width: auto; padding: 6px 10px; font-size: 11px; }
   </style>
 </head>
 <body>
 
 <div class="container">
   <div class="header">
-    <h1>⚙️ Dashboard Settings</h1>
+    <h1>⚙️ Dashboard Settings & User Roles</h1>
     <a href="index.php" class="btn-back">← Back to Dashboard</a>
   </div>
 
@@ -150,11 +161,11 @@ $usersList = $pdo->query('SELECT id, username, email, role, status, created_at F
   <?php endif; ?>
 
   <div class="grid">
-    <!-- 1. CHANGE PASSWORD -->
+    <!-- 1. CHANGE YOUR PERSONAL PASSWORD -->
     <div class="card">
-      <h2>🔐 Change Password</h2>
+      <h2>🔐 Change My Password</h2>
       <form method="POST">
-        <input type="hidden" name="action_change_password" value="1">
+        <input type="hidden" name="action_change_my_password" value="1">
         <div class="form-group">
           <label>Current Password</label>
           <input type="password" name="current_password" class="form-control" required>
@@ -167,13 +178,13 @@ $usersList = $pdo->query('SELECT id, username, email, role, status, created_at F
           <label>Confirm New Password</label>
           <input type="password" name="confirm_password" class="form-control" required>
         </div>
-        <button type="submit" class="btn-primary">Update Password</button>
+        <button type="submit" class="btn-primary">Update My Password</button>
       </form>
     </div>
 
-    <!-- 2. CREATE NEW ADMIN / USER ROLE -->
+    <!-- 2. ADD NEW STAFF USER & ASSIGN ROLE -->
     <div class="card">
-      <h2>👤 Add New User & Role</h2>
+      <h2>👤 Add New Staff User</h2>
       <form method="POST">
         <input type="hidden" name="action_create_user" value="1">
         <div class="form-group">
@@ -185,8 +196,8 @@ $usersList = $pdo->query('SELECT id, username, email, role, status, created_at F
           <input type="email" name="email" class="form-control" placeholder="staff@ramropasal.com">
         </div>
         <div class="form-group">
-          <label>Password</label>
-          <input type="password" name="password" class="form-control" required>
+          <label>Set Password</label>
+          <input type="password" name="password" class="form-control" placeholder="••••••••" required>
         </div>
         <div class="form-group">
           <label>Assign Role</label>
@@ -197,35 +208,14 @@ $usersList = $pdo->query('SELECT id, username, email, role, status, created_at F
             <option value="Inventory Specialist">Inventory Specialist (Stock Only)</option>
           </select>
         </div>
-        <button type="submit" class="btn-primary">Create User</button>
-      </form>
-    </div>
-
-    <!-- 3. STORE & LOCALIZATION SETTINGS -->
-    <div class="card">
-      <h2>🏪 Store & Payment Settings</h2>
-      <form method="POST">
-        <input type="hidden" name="action_update_store" value="1">
-        <div class="form-group">
-          <label>Store Name</label>
-          <input type="text" name="store_name" class="form-control" value="Biratnagar Ramro Pasal">
-        </div>
-        <div class="form-group">
-          <label>Koshi Delivery Flat Rate (NPR)</label>
-          <input type="number" name="delivery_fee" class="form-control" value="100">
-        </div>
-        <div class="form-group">
-          <label>eSewa Merchant Code</label>
-          <input type="text" name="esewa_merchant" class="form-control" value="EPAYTEST">
-        </div>
-        <button type="submit" class="btn-primary">Save Store Settings</button>
+        <button type="submit" class="btn-primary">Create Staff User</button>
       </form>
     </div>
   </div>
 
-  <!-- 4. SYSTEM USERS & ROLES TABLE -->
+  <!-- 3. SYSTEM USERS & DIRECT PASSWORD OVERRIDE TABLE -->
   <div class="card">
-    <h2>👥 Existing System Users</h2>
+    <h2>👥 System Users & Role Permissions</h2>
     <table>
       <thead>
         <tr>
@@ -234,7 +224,7 @@ $usersList = $pdo->query('SELECT id, username, email, role, status, created_at F
           <th>Email</th>
           <th>Role</th>
           <th>Status</th>
-          <th>Created Date</th>
+          <th>Set New Password</th>
         </tr>
       </thead>
       <tbody>
@@ -249,7 +239,14 @@ $usersList = $pdo->query('SELECT id, username, email, role, status, created_at F
               </span>
             </td>
             <td><span class="badge badge-active"><?= htmlspecialchars($u['status'] ?? 'Active') ?></span></td>
-            <td><?= date('M d, Y', strtotime($u['created_at'])) ?></td>
+            <td>
+              <form method="POST" class="inline-form">
+                <input type="hidden" name="action_reset_user_password" value="1">
+                <input type="hidden" name="target_user_id" value="<?= $u['id'] ?>">
+                <input type="password" name="user_new_password" class="form-control" placeholder="New Password" required>
+                <button type="submit" class="btn-primary">Update</button>
+              </form>
+            </td>
           </tr>
         <?php endforeach; ?>
       </tbody>

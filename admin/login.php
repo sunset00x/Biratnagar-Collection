@@ -2,13 +2,10 @@
 session_start();
 require_once __DIR__ . '/includes/config.php';
 
-// -------------------------------------------------------------
-// AUTO-SETUP: Create admin_users table & default admin if missing
-// -------------------------------------------------------------
 try {
     $tableCheck = $pdo->query("SHOW TABLES LIKE 'admin_users'");
     if ($tableCheck->rowCount() === 0) {
-        // Create table using clean string formatting
+   
         $createTableSql = 'CREATE TABLE admin_users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) NOT NULL UNIQUE,
@@ -19,7 +16,6 @@ try {
         
         $pdo->exec($createTableSql);
 
-        // Insert default admin user ('admin' / 'admin123')
         $defaultUser = 'admin';
         $defaultPass = password_hash('admin123', PASSWORD_DEFAULT);
         
@@ -27,10 +23,9 @@ try {
         $stmt->execute([$defaultUser, $defaultPass, 'admin@ramropasal.com']);
     }
 } catch (PDOException $e) {
-    // Silently continue if table already exists or execution handles it
+   
 }
 
-// Redirect if already logged in
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
     header('Location: index.php');
     exit;
@@ -67,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Login | Biratnagar Ramro Pasal</title>
+  <title>Admin Login | Biratnagar Collection</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -212,7 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="brand-header">
       <div class="brand-logo">🛍️</div>
       <h1>Admin Portal</h1>
-      <p>Sign in to manage Biratnagar Ramro Pasal</p>
+      <p>Sign in to manage Biratnagar Collection</p>
     </div>
 
     <?php if (!empty($error)): ?>
@@ -251,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 
     <div class="login-footer">
-      &copy; <?= date('Y') ?> Biratnagar Ramro Pasal. All rights reserved.
+      &copy; <?= date('Y') ?> Biratnagar Collection. All rights reserved.
     </div>
   </div>
 
