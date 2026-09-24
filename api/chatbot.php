@@ -45,7 +45,9 @@ if (preg_match('/(?:recipe|ingredients?|bundle|make|cook)\s*(?:for)?\s*([a-z0-9\
         $stmt =$pdo->prepare("SELECT id, name, price, image FROM products WHERE (name LIKE ? OR description LIKE ?) LIMIT 1");
         $stmt->execute(["%{$kw}\%", "\%{$kw}%"]);
         $item =$stmt->fetch(PDO::FETCH_ASSOC);
-        if ($item) $products[] =$item;
+        if ($item) {
+            $products[] =$item;
+        }
     }
 
     if (!empty($products)) {$reply = "🍳 **Recipe Ingredients Bundle for " . ucfirst($dish) . "**\nHere are the essential items available in our store:";
@@ -73,7 +75,8 @@ $synonyms = [
 
 $words = explode(' ', $lowerMsg);$searchTerms = [];
 foreach ($words as$w) {
-    if (isset($synonyms[$w]))$searchTerms[] = $synonyms[$w];
+    if (isset($synonyms[$w])) {$searchTerms[] = $synonyms[$w];
+    }
     $searchTerms[] =$w;
 }
 
@@ -101,8 +104,8 @@ try {
         echo json_encode(['reply' => $reply, 'type' => 'product_list', 'products' =>$products]);
         exit;
     }
-} catch (Exception $e) {
-    // Graceful fallback on database query edge-cases
+} catch (PDOException $e) {
+    // Graceful fallback for database exception handling
 }
 
 // =============================================================
