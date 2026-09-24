@@ -1,75 +1,99 @@
 <?php
-// Suppress warnings that break JSON parsing
-error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
-ini_set('display_errors', 0);
-
 header('Content-Type: application/json');
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
 
-// Resilient DB file lookup
-if (file_exists(__DIR__ . '/../includes/db.php')) {
-    require_once __DIR__ . '/../includes/db.php';
-} elseif (file_exists(__DIR__ . '/includes/db.php')) {
-    require_once __DIR__ . '/includes/db.php';
-} else {
-    echo json_encode(['reply' => 'Database configuration file missing.', 'type' => 'error']);
-    exit;
-}
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-$rawInput = file_get_contents('php://input');
-$input = json_decode($rawInput, true);
+$input = json_decode(file_get_contents('php://input'), true);
 $userMessage = trim($input['message'] ?? '');
 
 if (empty($userMessage)) {
-    echo json_encode(['reply' => 'Namaste! How can I assist you with your shopping today?', 'type' => 'text']);
+    echo json_encode(['reply' => 'Please enter a valid message or question.', 'type' => 'text']);
     exit;
 }
 
 $lowerMsg = strtolower($userMessage);
 
-// Synonyms map for English / Neplish
-$synonyms = [
-    'chiya' => 'tea', 'patti' => 'tea', 'tarkari' => 'vegetable', 
-    'tel' => 'oil', 'masala' => 'spice', 'chamal' => 'rice', 
-    'gini' => 'sugar', 'chini' => 'sugar', 'doodh' => 'milk', 'cocacola' => 'coca'
-];
+if (preg_match('/BRP-[A-Z0-9]{8}/i', $userMessage, $matches)) {
+    $orderCode = strtoupper($matches[0]);
+    $stmt = $pdo->prepare("SELECT * FROM orders WHERE order_code = ?");
+    $stmt->execute([$orderCode]);
+    $order = $stmt->fetch();
 
-$words = explode(' ', $lowerMsg);$searchTerms = [];
-foreach ($words as$w) {
-    if (isset($synonyms[$w])) {$searchTerms[] = $synonyms[$w];
-    }
-    $searchTerms[] =$w;
-}
+    if ($order) {
+        $itemStmt = $pdo->prepare("SELECT product_name, quantity, price FROM order_items WHERE order_id = ?");
+        $itemStmt->execute([$order['id']]);
+        $items = $itemStmt->fetchAll();
 
-// Remove filler words
-$filteredWords = array_diff($searchTerms, ['show', 'me', 'buy', 'search', 'get', 'want', 'need', 'chahiyo', 'cha', 'under', 'below']);
-$cleanTerm = implode('\%', array_unique($filteredWords));
+        $itemList = "";
+        foreach ($items as $it) {
+            $itemList .= "• {$it['product_name']} (x{$it['quantity']}) - Rs. " . number_format($it['price'] * $it['quantity']) . "\n";
+        }
 
-try {
-    $stmt =$pdo->prepare("SELECT id, name, price, image FROM products WHERE name LIKE ? OR description LIKE ? LIMIT 4");
-    $searchTerm = "\%{$cleanTerm}%";
-    $stmt->execute([$searchTerm,$searchTerm]);
-    $products =$stmt->fetchAll(PDO::FETCH_ASSOC);
+        $reply = "📦 **Order Status for #{$order['order_code']}**\n\n" .
+                 "• **Customer:** {$order['customer_name']}\n" .
+                 "• **Status:** {$order['status']}\n" .
+                 "• **Payment Method:** {$order['payment_method']}\n" .
+                 "• **Total Amount:** Rs. " . number_format($order['total_amount']) . "\n\n" .
+                 "**Ordered Items:**\n" . $itemList;
 
-    if (!empty($products)) {$reply = "🛒 Here are matching items found in our catalog:";
-        echo json_encode(['reply' => $reply, 'type' => 'product_list', 'products' =>$products]);
+        echo json_encode(['reply' => $reply, 'type' => 'order_status', 'order' => $order]);
+        exit;
+    } else {
+        echo json_encode(['reply' => "Sorry, I couldn't find any order with code **{$orderCode}**. Please double-check your receipt.", 'type' => 'text']);
         exit;
     }
-} catch (PDOException $e) {
-    echo json_encode(['reply' => "Database error: " . $e->getMessage(), 'type' => 'error']);
-    exit;
 }
 
-// Fallback greeting if no product matched
-if (strpos($lowerMsg, 'namaste') !== false \vert{}\vert{} strpos($lowerMsg, 'hi') !== false || strpos($lowerMsg, 'hello') !== false) {$reply = "🙏 Namaste! Welcome to Biratnagar Ramro Pasal.\n\nAsk me for `Chiya patti`, `Basmati Rice`, or `Coca-Cola`!";
-    echo json_encode(['reply' => $reply, 'type' => 'text']);
-    exit;
+if (strpos($lowerMsg, 'buy') !== false || strpos($lowerMsg, 'show') !== false || strpos($lowerMsg, 'search') !== false || strpos($lowerMsg, 'price') !== false || strpos($lowerMsg, 'under') !== false) {
+    
+    // Extract price cap if present (e.g., "under 500")
+    $maxPrice = 999999;
+    if (preg_match('/under\s*(?:rs\.?|npr)?\s*(\d+)/i', $lowerMsg, $pMatches)) {
+        $maxPrice = (float)$pMatches[1];
+    }
+
+    // Extract search query by removing common stop words
+    $cleanQuery = preg_replace('/(show|me|buy|search|items|products|under|rs\.?|npr|\d+)/i', '', $lowerMsg);
+    $cleanQuery = trim($cleanQuery);
+
+    if (!empty($cleanQuery)) {
+        $stmt = $pdo->prepare("SELECT id, name, price, old_price, image, stock FROM products WHERE (name LIKE ? OR description LIKE ?) AND price <= ? AND stock > 0 LIMIT 4");
+        $searchTerm = "%{$cleanQuery}%";
+        $stmt->execute([$searchTerm, $searchTerm, $maxPrice]);
+    } else {
+        $stmt = $pdo->prepare("SELECT id, name, price, old_price, image, stock FROM products WHERE price <= ? AND stock > 0 ORDER BY rating DESC LIMIT 4");
+        $stmt->execute([$maxPrice]);
+    }
+
+    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (!empty($products)) {
+        echo json_encode([
+            'reply' => "Here are the best matching items I found for you:",
+            'type' => 'product_list',
+            'products' => $products
+        ]);
+        exit;
+    }
 }
 
-$reply = "Sorry, no items matching **'" . htmlspecialchars($userMessage) . "'** were found in our store inventory right now.\n\nTry searching for `Chiya patti`, `Coca-Cola`, or `Rice`!";
-echo json_encode(['reply' => $reply, 'type' => 'text']);
+$faqs = $pdo->query("SELECT * FROM chatbot_faq")->fetchAll();
+foreach ($faqs as $faq) {
+    $keywords = explode(',', $faq['keywords']);
+    foreach ($keywords as $kw) {
+        $kw = trim($kw);
+        if (!empty($kw) && strpos($lowerMsg, strtolower($kw)) !== false) {
+            echo json_encode(['reply' => $faq['answer'], 'type' => 'text']);
+            exit;
+        }
+    }
+}
+
+$fallback = "I'm here to help! You can ask me to:\n" .
+            "1. **Track an Order**: Type `Track BRP-XXXXXXXX`\n" .
+            "2. **Search Products**: Type `Show me tea under 500`\n" .
+            "3. **Ask Questions**: Ask about delivery, payment methods, or returns.";
+
+echo json_encode(['reply' => $fallback, 'type' => 'fallback']);
 exit;
 ?>
